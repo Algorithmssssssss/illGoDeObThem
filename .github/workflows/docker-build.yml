@@ -13,7 +13,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        service: [web, api, worker]
+        service: [web, api, worker, worker-android]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

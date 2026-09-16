@@ -1,14 +1,24 @@
 # iOSDeOb
 
-A self-hosted iOS IPA reverse-engineering workbench. Upload an `.ipa` and get a
-Hopper/JADX-style browser for it: unzipped bundle contents, an Objective-C
-class/method tree, ARM64 disassembly with a Ghidra-backed pseudo-C
-decompiler, a side-by-side scan comparison view, and Frida-based dynamic
-instrumentation against a real device — all through one web UI, plus an MCP
-server so an AI agent can drive the same analysis.
+A self-hosted iOS/Android reverse-engineering workbench. Upload an `.ipa` or
+`.apk` and get a Hopper/JADX-style browser for it — a switcher at the top of
+the page ("🍎 iOSDeOb" / "🤖 AndroidDeOb") flips between the two, each with its
+own scan list:
 
-Built for de-obfuscating and understanding IPAs you own or are explicitly
-authorized to test — see [Responsible use](#responsible-use).
+- **iOS (`.ipa`)**: unzipped bundle contents, an Objective-C class/method
+  tree, ARM64 disassembly with a Ghidra-backed pseudo-C decompiler, scan
+  comparison, and Frida-based dynamic instrumentation against a real device.
+- **Android (`.apk`)**: unzipped APK contents, a parsed AndroidManifest.xml,
+  a DEX class/method/field tree, JADX-decompiled Java + smali disassembly
+  per class, and scan comparison. See [Android support](#android-support)
+  for what's not there yet (dynamic analysis, MCP tools).
+
+Both platforms also expose their analysis to AI agents — see
+[Setting up the MCP server](#4-optional-set-up-the-mcp-server) (currently
+iOS-only; Android MCP tools are a planned follow-up).
+
+Built for de-obfuscating and understanding IPAs/APKs you own or are
+explicitly authorized to test — see [Responsible use](#responsible-use).
 
 ## Features
 
@@ -41,21 +51,48 @@ authorized to test — see [Responsible use](#responsible-use).
   functions, decompiled pseudo-C) as MCP tools, so Claude Code, Claude
   Desktop, or any other MCP client can upload an IPA and reason about what
   it does — see [Setting up the MCP server](#4-optional-set-up-the-mcp-server).
+  IPA/iOS only for now.
+
+## Android support
+
+Switch to "🤖 AndroidDeOb" at the top of the page and drop an `.apk`. Static
+analysis parity with the iOS side: file browser, a parsed
+AndroidManifest.xml (package, permissions, components, SDK levels), a
+DEX class browser (methods/fields/access flags for every app-defined
+class), and scan comparison across two APK uploads.
+
+Selecting a class triggers on-demand decompilation — the same "click it,
+watch it decompile, then it's cached" model as iOS's function disassembly —
+via [JADX](https://github.com/skylot/jadx) for Java and
+[apktool](https://apktool.org/) for smali, shown side by side. JADX genuinely
+only processes the one class you clicked; apktool has no equivalent
+single-class mode, so the smali side costs a full (but fast) dex
+disassembly on whichever class you open first.
+
+**Not yet built** — both are natural follow-ups, not fundamental limitations:
+- **Dynamic analysis (Frida)** — Frida itself supports Android, but Java
+  method tracing needs its own hook design, separate from `frida-bridge`'s
+  ObjC-specific one.
+- **MCP tools** — `mcp-server` currently only exposes the iOS analysis.
 
 ## Architecture
 
 ```
-proxy   (Caddy)             — TLS/reverse-proxy, the only port you talk to (8080)
-web     (React + TypeScript)— the SPA
-api     (FastAPI)           — uploads, SQLite persistence, job orchestration
-worker  (Celery)            — the ONLY thing that touches untrusted binaries;
-                               fully network-isolated, never executes them —
-                               extraction, ObjC/Mach-O parsing, r2/Ghidra calls
-redis                        — Celery broker
+proxy           (Caddy)             — TLS/reverse-proxy, the only port you talk to (8080)
+web             (React + TypeScript)— the SPA (iOS + Android, switched in the UI)
+api             (FastAPI)           — uploads, SQLite persistence, job orchestration
+worker          (Celery)            — the ONLY thing that touches untrusted IPAs;
+                                       fully network-isolated, never executes them —
+                                       extraction, ObjC/Mach-O parsing, r2/Ghidra calls
+worker-android  (Celery)            — the Android analog of `worker`, same isolation
+                                       posture — extraction, androguard manifest/DEX
+                                       parsing, JADX decompile, apktool smali
+redis                                — Celery broker (shared by both workers, separate queues)
 ```
 
-`worker` runs on an internal, egress-free Docker network with a read-only
-root filesystem — it parses untrusted Mach-O data but never executes it.
+`worker`/`worker-android` run on an internal, egress-free Docker network with
+a read-only root filesystem — they parse untrusted binaries but never
+execute them.
 
 Two more pieces run **outside** Docker, directly on your Mac, and are both
 entirely optional:
@@ -74,13 +111,14 @@ same.
 ## Project layout
 
 ```
-api/            FastAPI backend — routes, models, schemas
-worker/         Celery worker that does the actual static analysis (Docker)
-web/            React + TypeScript frontend
+api/            FastAPI backend — routes, models, schemas (both iOS and Android)
+worker/         Celery worker that does the iOS static analysis (Docker)
+worker-android/ Celery worker that does the Android static analysis (Docker)
+web/            React + TypeScript frontend (iOS + Android, switched in the UI)
 proxy/          Caddy config (the reverse proxy in front of everything)
-frida-bridge/   Dynamic-analysis worker — runs on your host, not in Docker
-mcp-server/     MCP server — also runs on your host
-docker-compose.yml   Defines proxy/web/api/worker/redis
+frida-bridge/   Dynamic-analysis worker — runs on your host, not in Docker (iOS only)
+mcp-server/     MCP server — also runs on your host (iOS only)
+docker-compose.yml   Defines proxy/web/api/worker/worker-android/redis
 ```
 
 ## Prerequisites
@@ -120,9 +158,10 @@ Build and start everything:
 docker compose up -d --build
 ```
 
-First build pulls a handful of base images and compiles `radare2`/`r2ghidra`
-in the `worker` image — expect several minutes the first time, and a
-**1.5–3GB `worker` image**, which is normal for bundled RE tooling.
+First build pulls a handful of base images, compiles `radare2`/`r2ghidra` in
+the `worker` image, and downloads a JDK + JADX + apktool into the
+`worker-android` image — expect several minutes the first time, and
+**1.5–3GB images** for both, which is normal for bundled RE tooling.
 
 ## 2. Verify it's up
 
@@ -134,7 +173,9 @@ curl http://localhost:8080/api/health
 Open **http://localhost:8080** in a browser, upload a test `.ipa` (a
 dev-signed or ad-hoc build — see [Known limitations](#known-limitations) for
 why a straight-from-App-Store one won't work), and confirm it reaches
-`ready` status, then browse its Files/Classes/Functions tabs.
+`ready` status, then browse its Files/Classes/Functions tabs. Switch to
+"🤖 AndroidDeOb" at the top and try the same with a test `.apk` — any APK
+works there, no signing caveat.
 
 If port `8080` (or `8000`/`6379`, which `api`/`redis` also publish to
 `127.0.0.1`) is already used by something else on your machine, Docker will
@@ -229,6 +270,14 @@ extracted trees around indefinitely.
   do this by default); the agent deliberately doesn't attempt in-process
   gzip decompression via hand-built native `zlib` bindings, since getting a
   native struct layout wrong risks corrupting the traced process.
+- **JADX output on heavily obfuscated/Kotlin-heavy APKs can be lossy**, same
+  caveat any JADX-based tool carries — it's the same decompiler MobSF and
+  most Android RE workbenches use, not a from-scratch one either.
+- **First open of any class costs a full-dex apktool disassembly pass**
+  (only for the smali half — JADX's `--single-class` mode is genuinely
+  scoped to the one class you clicked). Fast in practice, but every distinct
+  class's first open pays it, since nothing is cached across requests on the
+  worker side — see [Android support](#android-support).
 - Multi-user auth was deliberately deferred — this is a personal/small-team
   tool right now, not a multi-tenant service.
 
@@ -254,7 +303,7 @@ extracted trees around indefinitely.
 ## Responsible use
 
 This is static- and dynamic-analysis tooling in the spirit of MobSF, JADX,
-and Ghidra: point it at IPAs you own, that you built, or that you have
+and Ghidra: point it at IPAs/APKs you own, that you built, or that you have
 explicit authorization to test. The dynamic-analysis feature instruments a
 real, running app on a real device — only do that against apps/devices
 you're authorized to test, and only while you intend a trace to happen.

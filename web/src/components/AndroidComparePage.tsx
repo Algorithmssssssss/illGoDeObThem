@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClassChanged, ClassSummary, CompareResult, FileChanged, FileEntry, IPA, compareScans } from "../api";
+import { FileChanged, FileEntry } from "../api";
+import { APK, ApkCompareResult, DexClassChanged, DexClassSummary, compareApkScans } from "../androidApi";
 import DiffColumn from "./DiffColumn";
 
 function formatSize(bytes?: number | null): string {
@@ -22,17 +23,17 @@ formatDelta.bytes = (n: number) => {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-export default function ComparePage({
-  ipas,
+export default function AndroidComparePage({
+  apks,
   onJumpToScan,
 }: {
-  ipas: IPA[];
-  onJumpToScan: (ipaId: string) => void;
+  apks: APK[];
+  onJumpToScan: (apkId: string) => void;
 }) {
-  const readyIpas = useMemo(() => ipas.filter((ipa) => ipa.status === "ready"), [ipas]);
+  const readyApks = useMemo(() => apks.filter((apk) => apk.status === "ready"), [apks]);
   const [aId, setAId] = useState("");
   const [bId, setBId] = useState("");
-  const [result, setResult] = useState<CompareResult | null>(null);
+  const [result, setResult] = useState<ApkCompareResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +45,7 @@ export default function ComparePage({
     let cancelled = false;
     setLoading(true);
     setError(null);
-    compareScans(aId, bId)
+    compareApkScans(aId, bId)
       .then((r) => {
         if (!cancelled) setResult(r);
       })
@@ -59,23 +60,27 @@ export default function ComparePage({
     };
   }, [aId, bId]);
 
+  function scanLabel(apk: APK): string {
+    return apk.app_name || apk.package_name || apk.original_filename;
+  }
+
   return (
     <div className="compare-page">
       <div className="compare-picker">
         <select className="compare-select" value={aId} onChange={(e) => setAId(e.target.value)}>
           <option value="">Scan A…</option>
-          {readyIpas.map((ipa) => (
-            <option key={ipa.id} value={ipa.id} disabled={ipa.id === bId}>
-              {ipa.original_filename}
+          {readyApks.map((apk) => (
+            <option key={apk.id} value={apk.id} disabled={apk.id === bId}>
+              {scanLabel(apk)}
             </option>
           ))}
         </select>
         <span className="compare-vs">vs</span>
         <select className="compare-select" value={bId} onChange={(e) => setBId(e.target.value)}>
           <option value="">Scan B…</option>
-          {readyIpas.map((ipa) => (
-            <option key={ipa.id} value={ipa.id} disabled={ipa.id === aId}>
-              {ipa.original_filename}
+          {readyApks.map((apk) => (
+            <option key={apk.id} value={apk.id} disabled={apk.id === aId}>
+              {scanLabel(apk)}
             </option>
           ))}
         </select>
@@ -157,8 +162,8 @@ export default function ComparePage({
                 count={result.classes.only_in_a_total}
                 tone="a"
                 items={result.classes.only_in_a}
-                filterText={(c: ClassSummary) => c.name}
-                renderRow={(c: ClassSummary) => (
+                filterText={(c: DexClassSummary) => c.name}
+                renderRow={(c: DexClassSummary) => (
                   <>
                     <span className="diff-row-main mono" title={c.name}>{c.name}</span>
                     <span className="diff-row-meta">{c.superclass}</span>
@@ -172,8 +177,8 @@ export default function ComparePage({
                 count={result.classes.only_in_b_total}
                 tone="b"
                 items={result.classes.only_in_b}
-                filterText={(c: ClassSummary) => c.name}
-                renderRow={(c: ClassSummary) => (
+                filterText={(c: DexClassSummary) => c.name}
+                renderRow={(c: DexClassSummary) => (
                   <>
                     <span className="diff-row-main mono" title={c.name}>{c.name}</span>
                     <span className="diff-row-meta">{c.superclass}</span>
@@ -187,12 +192,12 @@ export default function ComparePage({
                 count={result.classes.changed_total}
                 tone="changed"
                 items={result.classes.changed}
-                filterText={(c: ClassChanged) => c.name}
-                renderRow={(c: ClassChanged) => (
+                filterText={(c: DexClassChanged) => c.name}
+                renderRow={(c: DexClassChanged) => (
                   <>
                     <span className="diff-row-main mono" title={c.name}>{c.name}</span>
                     <span className="diff-row-meta">
-                      {c.a.instance_method_count}→{c.b.instance_method_count} methods
+                      {c.a.method_count}→{c.b.method_count} methods
                     </span>
                   </>
                 )}
@@ -200,34 +205,6 @@ export default function ComparePage({
                   { label: "A", scanId: result.a.id },
                   { label: "B", scanId: result.b.id },
                 ]}
-                onJump={onJumpToScan}
-              />
-            </div>
-          </section>
-
-          <section className="compare-section">
-            <h2>
-              Functions <span className="muted">· {result.functions.common_total} shared</span>
-            </h2>
-            <div className="diff-grid diff-grid-2">
-              <DiffColumn
-                title="Only in A"
-                count={result.functions.only_in_a_total}
-                tone="a"
-                items={result.functions.only_in_a}
-                filterText={(n: string) => n}
-                renderRow={(n: string) => <span className="diff-row-main mono" title={n}>{n}</span>}
-                jumpTargets={() => [{ label: "A", scanId: result.a.id }]}
-                onJump={onJumpToScan}
-              />
-              <DiffColumn
-                title="Only in B"
-                count={result.functions.only_in_b_total}
-                tone="b"
-                items={result.functions.only_in_b}
-                filterText={(n: string) => n}
-                renderRow={(n: string) => <span className="diff-row-main mono" title={n}>{n}</span>}
-                jumpTargets={() => [{ label: "B", scanId: result.b.id }]}
                 onJump={onJumpToScan}
               />
             </div>

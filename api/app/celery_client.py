@@ -36,3 +36,30 @@ def enqueue_dynamic_trace(ipa_id: str, job_id: str, params: dict) -> str:
         queue="frida",
     )
     return result.id
+
+
+def enqueue_analyze_apk(apk_id: str, job_id: str, storage_path: str) -> str:
+    result = celery_client.send_task(
+        "worker_android.tasks.analyze_apk",
+        args=[apk_id, job_id, storage_path],
+        queue="android",
+    )
+    return result.id
+
+
+def enqueue_decompile_class(apk_id: str, job_id: str, storage_path: str, class_name: str) -> str:
+    result = celery_client.send_task(
+        "worker_android.tasks.decompile_class",
+        args=[apk_id, job_id, storage_path, class_name],
+        queue="android",
+    )
+    return result.id
+
+
+def enqueue_cleanup_apk(apk_id: str) -> str:
+    result = celery_client.send_task(
+        "worker_android.tasks.cleanup_apk",
+        args=[apk_id],
+        queue="android",
+    )
+    return result.id

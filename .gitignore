@@ -7,6 +7,7 @@ __pycache__/
 # Node
 node_modules/
 package-lock.json.bak
+*.tsbuildinfo
 
 # frida-bridge build artifact — regenerated via `npm run build`, see frida-bridge/README.md
 frida-bridge/agent-bundle.js

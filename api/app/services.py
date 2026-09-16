@@ -4,7 +4,7 @@ import json
 
 from sqlalchemy.orm import Session
 
-from .models import ObjCClass, SymbolEntry
+from .models import ObjCClass, SymbolEntry, DexClass
 
 
 def get_merged_functions(db: Session, ipa_id: str) -> list[dict]:
@@ -59,4 +59,14 @@ def get_class_summary(row: ObjCClass) -> dict:
         "instance_method_count": len(data.get("instance_methods", [])),
         "class_method_count": len(data.get("class_methods", [])),
         "property_count": len(data.get("properties", [])),
+    }
+
+
+def get_dex_class_summary(row: DexClass) -> dict:
+    data = json.loads(row.data_json)
+    return {
+        "name": row.name,
+        "superclass": row.superclass,
+        "method_count": len(data.get("methods", [])),
+        "field_count": len(data.get("fields", [])),
     }

@@ -124,3 +124,103 @@ class DynamicTrace(Base):
     category = Column(String, nullable=False)  # objc_call | network | keychain | crypto | lifecycle | error
     summary = Column(String, nullable=False)  # one-line label for the list view
     detail_json = Column(Text, nullable=False)  # category-specific structured detail
+
+
+# ---------------------------------------------------------------------------
+# Android (APK) — parallel to the IPA tables above rather than a shared/
+# polymorphic schema, so none of this touches the working iOS models/routes.
+# ---------------------------------------------------------------------------
+
+
+class APK(Base):
+    __tablename__ = "apks"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    original_filename = Column(String, nullable=False)
+    sha256 = Column(String, nullable=True)
+    size_bytes = Column(Integer, nullable=False)
+    storage_path = Column(String, nullable=False)
+    status = Column(String, default="pending")  # pending, extracting, ready, failed
+    error_message = Column(Text, nullable=True)
+    warnings_json = Column(Text, nullable=True)
+    app_name = Column(String, nullable=True)
+    package_name = Column(String, nullable=True)
+    version_name = Column(String, nullable=True)
+    version_code = Column(String, nullable=True)
+    min_sdk_version = Column(String, nullable=True)
+    target_sdk_version = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    file_tree_nodes = relationship("ApkFileTreeNode", back_populates="apk", cascade="all, delete-orphan")
+    manifest = relationship("ManifestRecord", back_populates="apk", cascade="all, delete-orphan")
+    jobs = relationship("AndroidJob", back_populates="apk", cascade="all, delete-orphan")
+    dex_classes = relationship("DexClass", cascade="all, delete-orphan")
+    decompiled_sources = relationship("DecompiledSource", cascade="all, delete-orphan")
+
+
+class ApkFileTreeNode(Base):
+    __tablename__ = "apk_file_tree_nodes"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    apk_id = Column(String, ForeignKey("apks.id"), nullable=False)
+    parent_path = Column(String, nullable=True)
+    path = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    kind = Column(String, nullable=False)  # "file" | "dir"
+    size_bytes = Column(Integer, nullable=True)
+    mime_guess = Column(String, nullable=True)
+    is_main_binary = Column(Boolean, default=False)  # classes.dex / classesN.dex
+
+    apk = relationship("APK", back_populates="file_tree_nodes")
+
+
+class ManifestRecord(Base):
+    __tablename__ = "manifest_records"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    apk_id = Column(String, ForeignKey("apks.id"), nullable=False)
+    parsed_json = Column(Text, nullable=False)  # package, permissions, components, sdk levels, etc.
+
+    apk = relationship("APK", back_populates="manifest")
+
+
+class DexClass(Base):
+    __tablename__ = "dex_classes"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    apk_id = Column(String, ForeignKey("apks.id"), nullable=False)
+    name = Column(String, nullable=False)  # dotted, e.g. com.foo.Bar$Inner
+    superclass = Column(String, nullable=True)
+    access_flags = Column(String, nullable=True)
+    data_json = Column(Text, nullable=False)  # {interfaces, methods: [...], fields: [...]}
+
+
+class DecompiledSource(Base):
+    __tablename__ = "decompiled_sources"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    apk_id = Column(String, ForeignKey("apks.id"), nullable=False)
+    class_name = Column(String, nullable=False)
+    java_code = Column(Text, nullable=True)
+    java_error = Column(Text, nullable=True)
+    smali_code = Column(Text, nullable=True)
+    smali_error = Column(Text, nullable=True)
+    truncated = Column(Boolean, default=False)
+
+
+class AndroidJob(Base):
+    __tablename__ = "android_jobs"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    apk_id = Column(String, ForeignKey("apks.id"), nullable=False)
+    celery_task_id = Column(String, nullable=True)
+    phase = Column(String, default="extract")  # extract, decompile
+    context_class_name = Column(String, nullable=True)  # which class, for phase="decompile" jobs
+    status = Column(String, default="queued")  # queued, running, done, failed
+    progress_pct = Column(Integer, default=0)
+    message = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+
+    apk = relationship("APK", back_populates="jobs")

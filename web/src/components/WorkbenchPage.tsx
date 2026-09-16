@@ -20,6 +20,7 @@ import {
   jobSocketUrl,
   listJobs,
   requestDisasm,
+  uploadIpa,
 } from "../api";
 import UploadForm from "./UploadForm";
 import FileTree from "./FileTree";
@@ -50,7 +51,7 @@ export default function WorkbenchPage({
   onSelectIpa: (id: string | null) => void;
   onIpasChanged: () => void;
 }) {
-  const [selectedIpa, setSelectedIpa] = useState<IPA | null>(null);
+  const selectedIpa = ipas.find((i) => i.id === selectedIpaId) ?? null;
   const [job, setJob] = useState<Job | null>(null);
   const [tree, setTree] = useState<FileTreeNode[]>([]);
   const [plists, setPlists] = useState<PlistEntry[]>([]);
@@ -103,7 +104,6 @@ export default function WorkbenchPage({
 
     async function init() {
       const ipa = ipas.find((i) => i.id === selectedIpaId) ?? null;
-      setSelectedIpa(ipa);
 
       if (ipa?.status === "ready") {
         loadResults(selectedIpaId!);
@@ -294,6 +294,9 @@ export default function WorkbenchPage({
     <>
       <aside className="scan-sidebar">
         <UploadForm
+          accept=".ipa"
+          label="Drop an .ipa"
+          uploadFn={uploadIpa}
           onUploaded={(ipa) => {
             onIpasChanged();
             onSelectIpa(ipa.id);

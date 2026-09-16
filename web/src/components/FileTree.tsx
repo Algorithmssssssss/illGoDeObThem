@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileTreeNode } from "../api";
 
-export function flattenFiles(nodes: FileTreeNode[], into: FileTreeNode[] = []): FileTreeNode[] {
+// Structural, not tied to api.ts's FileTreeNode specifically — androidApi.ts's
+// ApkFileTreeNode has the identical shape, so this same component/tree logic
+// serves both the iOS and Android file browsers; only the icon mapping differs.
+export interface TreeFileNode {
+  path: string;
+  name: string;
+  kind: "file" | "dir";
+  size_bytes?: number | null;
+  mime_guess?: string | null;
+  is_main_binary: boolean;
+  children: TreeFileNode[];
+}
+
+export function flattenFiles<T extends TreeFileNode>(nodes: T[], into: T[] = []): T[] {
   for (const n of nodes) {
     into.push(n);
-    if (n.kind === "dir") flattenFiles(n.children, into);
+    if (n.kind === "dir") flattenFiles(n.children as T[], into);
   }
   return into;
 }
@@ -16,7 +28,7 @@ function formatSize(bytes?: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function iconFor(node: FileTreeNode, open = false): string {
+export function iconFor(node: TreeFileNode, open = false): string {
   if (node.kind === "dir") {
     if (node.name.endsWith(".app")) return "📦";
     return open ? "📂" : "📁";
@@ -32,7 +44,23 @@ export function iconFor(node: FileTreeNode, open = false): string {
   return "📄";
 }
 
-function collectInitialOpen(nodes: FileTreeNode[], depth: number, into: Set<string>) {
+export function androidIconFor(node: TreeFileNode, open = false): string {
+  if (node.kind === "dir") {
+    return open ? "📂" : "📁";
+  }
+  if (node.is_main_binary) return "⚙️";
+  if (node.name === "AndroidManifest.xml") return "📋";
+  const ext = node.name.includes(".") ? node.name.slice(node.name.lastIndexOf(".")).toLowerCase() : "";
+  if (ext === ".dex") return "⚙️";
+  if (ext === ".so") return "🔧";
+  if (ext === ".arsc") return "🎨";
+  if ([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"].includes(ext)) return "🖼️";
+  if ([".json", ".xml", ".txt", ".md", ".yml", ".yaml", ".pro"].includes(ext)) return "📝";
+  if (ext === ".smali") return "🧩";
+  return "📄";
+}
+
+function collectInitialOpen(nodes: TreeFileNode[], depth: number, into: Set<string>) {
   if (depth >= 2) return;
   for (const n of nodes) {
     if (n.kind === "dir") {
@@ -58,13 +86,15 @@ function TreeNode({
   selectedPath,
   openPaths,
   onToggle,
+  getIcon,
 }: {
-  node: FileTreeNode;
+  node: TreeFileNode;
   depth: number;
-  onSelect: (node: FileTreeNode) => void;
+  onSelect: (node: TreeFileNode) => void;
   selectedPath: string | null;
   openPaths: Set<string>;
   onToggle: (path: string) => void;
+  getIcon: (node: TreeFileNode, open?: boolean) => string;
 }) {
   const isDir = node.kind === "dir";
   const open = openPaths.has(node.path);
@@ -81,7 +111,7 @@ function TreeNode({
         }}
       >
         {isDir && <span className="tree-caret">{open ? "▾" : "▸"}</span>}
-        <span className="tree-icon">{iconFor(node, open)}</span>
+        <span className="tree-icon">{getIcon(node, open)}</span>
         <span className="tree-name">{node.name}</span>
         {!isDir && <span className="tree-size">{formatSize(node.size_bytes)}</span>}
       </div>
@@ -96,6 +126,7 @@ function TreeNode({
               selectedPath={selectedPath}
               openPaths={openPaths}
               onToggle={onToggle}
+              getIcon={getIcon}
             />
           ))}
         </div>
@@ -108,10 +139,12 @@ export default function FileTree({
   nodes,
   onSelect,
   selectedPath,
+  getIcon = iconFor,
 }: {
-  nodes: FileTreeNode[];
-  onSelect: (node: FileTreeNode) => void;
+  nodes: TreeFileNode[];
+  onSelect: (node: TreeFileNode) => void;
   selectedPath: string | null;
+  getIcon?: (node: TreeFileNode, open?: boolean) => string;
 }) {
   const [openPaths, setOpenPaths] = useState<Set<string>>(() => {
     const s = new Set<string>();
@@ -175,7 +208,7 @@ export default function FileTree({
               className={`search-result-row ${selectedPath === n.path ? "selected" : ""}`}
               onClick={() => onSelect(n)}
             >
-              <span className="tree-icon">{iconFor(n)}</span>
+              <span className="tree-icon">{getIcon(n)}</span>
               <span className="search-result-name">{n.name}</span>
               <span className="search-result-sub">{n.path}</span>
             </div>
@@ -192,6 +225,7 @@ export default function FileTree({
               selectedPath={selectedPath}
               openPaths={openPaths}
               onToggle={onToggle}
+              getIcon={getIcon}
             />
           ))}
         </div>

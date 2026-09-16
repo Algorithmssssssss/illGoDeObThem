@@ -1,22 +1,31 @@
 import { useRef, useState } from "react";
-import { uploadIpa, IPA } from "../api";
 
-export default function UploadForm({ onUploaded }: { onUploaded: (ipa: IPA) => void }) {
+export default function UploadForm<T>({
+  accept = ".ipa",
+  label = "Drop an .ipa",
+  uploadFn,
+  onUploaded,
+}: {
+  accept?: string;
+  label?: string;
+  uploadFn: (file: File, onProgress: (pct: number) => void) => Promise<T>;
+  onUploaded: (result: T) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   async function handleFile(file: File) {
-    if (!file.name.toLowerCase().endsWith(".ipa")) {
-      setError("Only .ipa files are accepted");
+    if (!file.name.toLowerCase().endsWith(accept)) {
+      setError(`Only ${accept} files are accepted`);
       return;
     }
     setError(null);
     setProgress(0);
     try {
-      const ipa = await uploadIpa(file, setProgress);
-      onUploaded(ipa);
+      const result = await uploadFn(file, setProgress);
+      onUploaded(result);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -43,13 +52,13 @@ export default function UploadForm({ onUploaded }: { onUploaded: (ipa: IPA) => v
       >
         <div className="dropzone-icon">⇪</div>
         <div className="dropzone-text">
-          <strong>Drop an .ipa</strong> or click to browse
+          <strong>{label}</strong> or click to browse
         </div>
       </div>
       <input
         ref={inputRef}
         type="file"
-        accept=".ipa"
+        accept={accept}
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0];

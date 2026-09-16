@@ -76,6 +76,34 @@ services:
           cpus: "2"
           memory: 4g
 
+  worker-android:
+    build: ./worker-android
+    networks:
+      - backend-net
+    depends_on:
+      - redis
+    read_only: true
+    tmpfs:
+      - /work:size=2g
+      - /tmp:size=512m
+      # JADX (and potentially apktool) resolve their config/cache dir from the
+      # OS user database (getpwuid), which is /root here, NOT from $HOME --
+      # setting HOME alone doesn't redirect them off the read-only root fs.
+      - /root:size=128m
+    environment:
+      - UPLOADS_DIR=/uploads
+      - EXTRACT_DIR=/work
+      - REDIS_URL=redis://redis:6379/0
+      - API_INTERNAL_URL=http://api:8000
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:-dev-internal-token-change-me}
+    volumes:
+      - uploads:/uploads:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4g
+
   redis:
     image: redis:7-alpine
     ports:

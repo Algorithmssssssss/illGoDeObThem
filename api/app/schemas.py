@@ -281,3 +281,131 @@ class DynamicEventsBatchIn(BaseModel):
 class DynamicCompletePayload(BaseModel):
     success: bool
     error_message: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Android (APK)
+# ---------------------------------------------------------------------------
+
+
+class APKOut(BaseModel):
+    id: str
+    original_filename: str
+    size_bytes: int
+    status: str
+    error_message: Optional[str] = None
+    app_name: Optional[str] = None
+    package_name: Optional[str] = None
+    version_name: Optional[str] = None
+    version_code: Optional[str] = None
+    min_sdk_version: Optional[str] = None
+    target_sdk_version: Optional[str] = None
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ApkFileTreeNodeOut(BaseModel):
+    path: str
+    name: str
+    kind: str
+    size_bytes: Optional[int] = None
+    mime_guess: Optional[str] = None
+    is_main_binary: bool = False
+    children: list["ApkFileTreeNodeOut"] = []
+
+
+class ManifestOut(BaseModel):
+    parsed: Any
+    warnings: list[str] = []
+
+
+class DexMethodOut(BaseModel):
+    name: str
+    descriptor: Optional[str] = None
+    access_flags: Optional[str] = None
+
+
+class DexFieldOut(BaseModel):
+    name: str
+    descriptor: Optional[str] = None
+    access_flags: Optional[str] = None
+
+
+class DexClassOut(BaseModel):
+    name: str
+    superclass: Optional[str] = None
+    access_flags: Optional[str] = None
+    interfaces: list[str] = []
+    methods: list[DexMethodOut] = []
+    fields: list[DexFieldOut] = []
+
+
+class DexClassesResponse(BaseModel):
+    classes: list[DexClassOut]
+    warnings: list[str] = []
+
+
+class ClassSourceOut(BaseModel):
+    class_name: str
+    java_code: Optional[str] = None
+    java_error: Optional[str] = None
+    smali_code: Optional[str] = None
+    smali_error: Optional[str] = None
+    truncated: bool = False
+
+
+class ClassSourceRequestResult(BaseModel):
+    cached: bool
+    result: Optional[ClassSourceOut] = None
+    job_id: Optional[str] = None
+
+
+class AndroidJobOut(BaseModel):
+    id: str
+    apk_id: str
+    phase: str
+    status: str
+    progress_pct: int
+    message: Optional[str] = None
+    error_message: Optional[str] = None
+    context_class_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ApkCompareScanRef(BaseModel):
+    id: str
+    filename: str
+
+
+class DexClassSummaryOut(BaseModel):
+    name: str
+    superclass: Optional[str] = None
+    method_count: int = 0
+    field_count: int = 0
+
+
+class DexClassChangedOut(BaseModel):
+    name: str
+    a: DexClassSummaryOut
+    b: DexClassSummaryOut
+
+
+class DexClassDiffOut(BaseModel):
+    only_in_a: list[DexClassSummaryOut] = []
+    only_in_a_total: int = 0
+    only_in_b: list[DexClassSummaryOut] = []
+    only_in_b_total: int = 0
+    changed: list[DexClassChangedOut] = []
+    changed_total: int = 0
+    common_total: int = 0
+
+
+class ApkCompareResponse(BaseModel):
+    a: ApkCompareScanRef
+    b: ApkCompareScanRef
+    files: FileDiffOut
+    classes: DexClassDiffOut
