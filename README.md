@@ -1,4 +1,4 @@
-# iOSDeOb
+# illGoDeObThem
 
 A self-hosted iOS/Android reverse-engineering workbench. Upload an `.ipa` or
 `.apk` and get a Hopper/JADX-style browser for it — a switcher at the top of
