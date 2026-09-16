@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
-from .routes import ipas, jobs, compare, dynamic
+from .routes import ipas, jobs, compare, dynamic, codeshare
 
 app = FastAPI(title="iOSDeOb")
 
@@ -17,6 +17,7 @@ app.include_router(ipas.router)
 app.include_router(jobs.router)
 app.include_router(compare.router)
 app.include_router(dynamic.router)
+app.include_router(codeshare.router)
 
 
 @app.on_event("startup")

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CodeshareResolveResult,
   DynamicRun,
   DynamicTraceEvent,
   FridaDevice,
@@ -13,6 +14,7 @@ import {
   listDynamicRuns,
   listFridaDevices,
   removeRemoteDevice,
+  resolveCodeshareScript,
   startDynamicTrace,
   stopJob,
 } from "../api";
@@ -94,6 +96,11 @@ export default function DynamicPage({ ipas }: { ipas: IPA[] }) {
   const [customScript, setCustomScript] = useState("");
   const [customScriptFileName, setCustomScriptFileName] = useState<string | null>(null);
   const [showScriptEditor, setShowScriptEditor] = useState(false);
+  const [showCodeshareInput, setShowCodeshareInput] = useState(false);
+  const [codeshareInput, setCodeshareInput] = useState("");
+  const [codeshareLoading, setCodeshareLoading] = useState(false);
+  const [codeshareError, setCodeshareError] = useState<string | null>(null);
+  const [codesharePending, setCodesharePending] = useState<CodeshareResolveResult | null>(null);
 
   // Hidden-categories model (not an allow-list): anything new — including
   // arbitrary category names a custom script sends — is visible by default.
@@ -258,6 +265,40 @@ export default function DynamicPage({ ipas }: { ipas: IPA[] }) {
     setCustomScript("");
     setCustomScriptFileName(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function toggleCodeshareInput() {
+    setShowCodeshareInput((v) => !v);
+    setCodeshareError(null);
+    setCodesharePending(null);
+  }
+
+  async function handleFetchCodeshare() {
+    const input = codeshareInput.trim();
+    if (!input) return;
+    setCodeshareLoading(true);
+    setCodeshareError(null);
+    setCodesharePending(null);
+    try {
+      setCodesharePending(await resolveCodeshareScript(input));
+    } catch (e) {
+      setCodeshareError((e as Error).message);
+    } finally {
+      setCodeshareLoading(false);
+    }
+  }
+
+  // Frida's own CLI won't run a CodeShare snippet without an explicit "do you
+  // trust this?" prompt first — this mirrors that, since we're fetching and
+  // running arbitrary third-party code the user only identified by a link.
+  function acceptCodeshareScript() {
+    if (!codesharePending) return;
+    setCustomScript(codesharePending.source);
+    setCustomScriptFileName(`codeshare:${codesharePending.author}/${codesharePending.slug}`);
+    setShowScriptEditor(true);
+    setCodesharePending(null);
+    setCodeshareInput("");
+    setShowCodeshareInput(false);
   }
 
   async function handleAddRemoteDevice() {
@@ -488,6 +529,9 @@ export default function DynamicPage({ ipas }: { ipas: IPA[] }) {
                 <label htmlFor="dyn-script-file" className="btn btn-secondary dyn-script-upload-btn">
                   📄 Upload .js
                 </label>
+                <button className="btn btn-secondary" onClick={toggleCodeshareInput}>
+                  🔗 CodeShare
+                </button>
                 {customScriptFileName && <span className="dyn-script-filename mono">{customScriptFileName}</span>}
                 {customScript && (
                   <>
@@ -500,6 +544,53 @@ export default function DynamicPage({ ipas }: { ipas: IPA[] }) {
                   </>
                 )}
               </div>
+              {showCodeshareInput && (
+                <div className="dyn-codeshare-box">
+                  <div className="dyn-codeshare-row">
+                    <input
+                      className="search-input"
+                      placeholder="https://codeshare.frida.re/@author/slug/"
+                      value={codeshareInput}
+                      onChange={(e) => setCodeshareInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleFetchCodeshare();
+                      }}
+                    />
+                    <button
+                      className="btn btn-secondary"
+                      disabled={codeshareLoading || !codeshareInput.trim()}
+                      onClick={handleFetchCodeshare}
+                    >
+                      {codeshareLoading ? "Fetching…" : "Fetch"}
+                    </button>
+                  </div>
+                  {codeshareError && <div className="error-text">{codeshareError}</div>}
+                  {codesharePending && (
+                    <div className="dyn-codeshare-confirm">
+                      <div>
+                        ⚠ This loads third-party code from CodeShare: <strong>{codesharePending.project_name}</strong>{" "}
+                        by <span className="mono">@{codesharePending.author}</span>.
+                      </div>
+                      <div className="muted dyn-script-hint">
+                        sha256 <code className="mono">{codesharePending.fingerprint.slice(0, 16)}…</code> ·{" "}
+                        <a href={codesharePending.url} target="_blank" rel="noreferrer">
+                          View on CodeShare ↗
+                        </a>
+                        . The Frida CLI would ask you to confirm trust before running a snippet like this — review it
+                        before loading.
+                      </div>
+                      <div className="dyn-codeshare-actions">
+                        <button className="btn" onClick={acceptCodeshareScript}>
+                          Trust &amp; load script
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => setCodesharePending(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="muted dyn-script-hint">
                 Runs alongside the hooks above, in its own script — a syntax error or exception in it won't affect
                 the built-in hooks. Anything it <code className="mono">send()</code>s is logged as a{" "}

@@ -217,6 +217,19 @@ class StartDynamicRequest(BaseModel):
     device_id: Optional[str] = None
 
 
+class CodeshareResolveRequest(BaseModel):
+    input: str
+
+
+class CodeshareResolveResponse(BaseModel):
+    author: str
+    slug: str
+    project_name: str
+    source: str
+    fingerprint: str
+    url: str
+
+
 class DynamicRunConfigOut(BaseModel):
     bundle_id: Optional[str] = None
     classes: list[str] = []

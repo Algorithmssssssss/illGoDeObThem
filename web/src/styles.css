@@ -1111,6 +1111,33 @@ body {
 }
 .dyn-script-editor:focus { outline: none; border-color: var(--accent-dim); }
 
+.dyn-codeshare-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.dyn-codeshare-row {
+  display: flex;
+  gap: 6px;
+}
+.dyn-codeshare-row .search-input { flex: 1; }
+.dyn-codeshare-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(224, 179, 77, 0.08);
+  border: 1px solid rgba(224, 179, 77, 0.35);
+  border-radius: var(--radius);
+  padding: 10px;
+  font-size: 12.5px;
+}
+.dyn-codeshare-confirm a { color: var(--accent); }
+.dyn-codeshare-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .dyn-device-heading {
   display: flex;
   align-items: center;

@@ -344,6 +344,25 @@ export async function startDynamicTrace(ipaId: string, body: StartDynamicRequest
   );
 }
 
+export interface CodeshareResolveResult {
+  author: string;
+  slug: string;
+  project_name: string;
+  source: string;
+  fingerprint: string;
+  url: string;
+}
+
+export async function resolveCodeshareScript(input: string): Promise<CodeshareResolveResult> {
+  return json(
+    await fetch(`${API_BASE}/codeshare/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input }),
+    })
+  );
+}
+
 export async function stopJob(jobId: string): Promise<DynamicRun> {
   return json(await fetch(`${API_BASE}/jobs/${jobId}/stop`, { method: "POST" }));
 }
