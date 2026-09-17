@@ -1,4 +1,4 @@
-# illGoDeObThem
+# iOSDeOb
 
 A self-hosted iOS/Android reverse-engineering workbench. Upload an `.ipa` or
 `.apk` and get a Hopper/JADX-style browser for it — a switcher at the top of
@@ -187,6 +187,13 @@ fail to start that service — see
 Skip this section entirely if you don't need to trace a live app on a
 device — everything above already works without it.
 
+Once you've done the one-time setup below, `./run-host-services.sh` (in the
+project root) starts frida-bridge and/or the MCP server for you — it
+handles the venv/npm/agent-build steps itself on first run, so you don't
+need to repeat the manual commands below every time. Run it with no
+argument for an interactive menu, or `./run-host-services.sh 2` to jump
+straight to frida-bridge only.
+
 ```bash
 cd frida-bridge
 python3 -m venv .venv
@@ -232,7 +239,11 @@ what gets captured, custom scripts, and troubleshooting — are in
 
 ## 4. (Optional) Set up the MCP server
 
-Skip this if you don't use an MCP-compatible AI client.
+Skip this if you don't use an MCP-compatible AI client. `./run-host-services.sh 1`
+(or the interactive menu) handles the one-time venv setup below and starts it
+for you — note your MCP client normally spawns its own instance per its own
+config rather than attaching to a standalone one, so running it this way is
+mainly useful as a quick "does it start cleanly" check.
 
 ```bash
 cd mcp-server
