@@ -226,3 +226,52 @@ class AndroidJob(Base):
     finished_at = Column(DateTime, nullable=True)
 
     apk = relationship("APK", back_populates="jobs")
+
+
+# ---------------------------------------------------------------------------
+# reFlutter — patches a Flutter app's engine (via the `reflutter` CLI in the
+# dedicated egress-enabled `reflutter` service) and, separately, parses the
+# `dump.dart` a patched build emits on-device. Parallel/self-contained tables
+# like the Android ones above — this never touches the IPA/APK analysis tables,
+# and a reFlutter input is its own uploaded copy (the patcher repackages it).
+# ---------------------------------------------------------------------------
+
+
+class ReflutterJob(Base):
+    __tablename__ = "reflutter_jobs"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    platform = Column(String, nullable=False)  # "ios" | "android"
+    original_filename = Column(String, nullable=False)
+    sha256 = Column(String, nullable=True)
+    size_bytes = Column(Integer, nullable=False)
+    input_path = Column(String, nullable=False)  # the uploaded .ipa/.apk we patch
+    mode = Column(String, nullable=False)  # "traffic" | "snapshot"
+    proxy_ip = Column(String, nullable=True)  # Burp IP[:port], only for mode="traffic"
+    celery_task_id = Column(String, nullable=True)
+    status = Column(String, default="queued")  # queued, running, done, failed
+    progress_pct = Column(Integer, default=0)
+    message = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+    output_log = Column(Text, nullable=True)  # reflutter stdout/stderr
+    snapshot_hash = Column(String, nullable=True)  # Dart snapshot hash, parsed from output
+    artifact_path = Column(String, nullable=True)  # patched RE file on the shared volume
+    artifact_filename = Column(String, nullable=True)  # name to offer on download
+    created_at = Column(DateTime, default=datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
+
+    dumps = relationship("DumpDart", cascade="all, delete-orphan")
+
+
+class DumpDart(Base):
+    __tablename__ = "dump_darts"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    # Optional: a dump.dart can be uploaded standalone, or tied to the job
+    # whose patched build produced it. ondelete is enforced in the route, since
+    # SQLite FKs aren't on by default here.
+    reflutter_job_id = Column(String, ForeignKey("reflutter_jobs.id"), nullable=True)
+    original_filename = Column(String, nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    parsed_json = Column(Text, nullable=False)  # {libraries: [...], stats, unparsed_lines}
+    created_at = Column(DateTime, default=datetime.utcnow)

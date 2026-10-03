@@ -7,6 +7,7 @@ import PlatformSwitch, { type Platform } from "./components/PlatformSwitch";
 import WorkbenchPage from "./components/WorkbenchPage";
 import ComparePage from "./components/ComparePage";
 import DynamicPage from "./components/DynamicPage";
+import ReflutterPage from "./components/ReflutterPage";
 import McpDocsPage from "./components/McpDocsPage";
 import AndroidWorkbenchPage from "./components/AndroidWorkbenchPage";
 import AndroidComparePage from "./components/AndroidComparePage";
@@ -15,6 +16,7 @@ const SECTION_TITLE: Record<AppView, string> = {
   workbench: "Workbench",
   compare: "Compare scans",
   dynamic: "Dynamic analysis",
+  reflutter: "reFlutter",
   docs: "MCP documentation",
 };
 
@@ -129,6 +131,7 @@ export default function App() {
             />
           )}
           {platform === "ios" && view === "dynamic" && <DynamicPage ipas={ipas} />}
+          {platform === "ios" && view === "reflutter" && <ReflutterPage platform="ios" />}
           {platform === "ios" && view === "docs" && <McpDocsPage />}
 
           {platform === "android" && view === "workbench" && (
@@ -153,6 +156,7 @@ export default function App() {
               }}
             />
           )}
+          {platform === "android" && view === "reflutter" && <ReflutterPage platform="android" />}
         </div>
       </div>
     </div>

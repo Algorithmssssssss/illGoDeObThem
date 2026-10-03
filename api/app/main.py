@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
-from .routes import ipas, jobs, compare, dynamic, codeshare, apks, android_jobs
+from .routes import ipas, jobs, compare, dynamic, codeshare, apks, android_jobs, reflutter
 
 app = FastAPI(title="iOSDeOb")
 
@@ -20,6 +20,7 @@ app.include_router(dynamic.router)
 app.include_router(codeshare.router)
 app.include_router(apks.router)
 app.include_router(android_jobs.router)
+app.include_router(reflutter.router)
 
 
 @app.on_event("startup")

@@ -1,0 +1,6 @@
+celery[redis]==5.4.0
+requests==2.32.3
+# reFlutter is intentionally unpinned: each release adds support for newer
+# Flutter engine snapshots and pulls the matching pre-patched engine from its
+# GitHub releases at patch time, so the newest version is what we want here.
+reflutter

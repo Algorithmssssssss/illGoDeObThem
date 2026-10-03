@@ -63,3 +63,12 @@ def enqueue_cleanup_apk(apk_id: str) -> str:
         queue="android",
     )
     return result.id
+
+
+def enqueue_reflutter(job_id: str, input_path: str, mode: str, proxy_ip: str | None, platform: str) -> str:
+    result = celery_client.send_task(
+        "reflutter.tasks.run_reflutter",
+        args=[job_id, input_path, mode, proxy_ip, platform],
+        queue="reflutter",
+    )
+    return result.id

@@ -2,12 +2,17 @@ networks:
   frontend-net:
   backend-net:
     internal: true
+  # Non-internal (egress-capable) network used ONLY by the reflutter service,
+  # which must reach GitHub to download the matching pre-patched Flutter
+  # engine. The analysis workers deliberately stay off this network.
+  egress-net:
 
 volumes:
   uploads:
   extract-scratch:
   sqlite-data:
   binaries:
+  reflutter-artifacts:
 
 services:
   proxy:
@@ -44,11 +49,15 @@ services:
     environment:
       - DATABASE_PATH=/data/app.db
       - UPLOADS_DIR=/uploads
+      - REFLUTTER_ARTIFACTS_DIR=/reflutter-artifacts
       - REDIS_URL=redis://redis:6379/0
       - INTERNAL_TOKEN=${INTERNAL_TOKEN:-dev-internal-token-change-me}
     volumes:
       - sqlite-data:/data
       - uploads:/uploads
+      # read-write so the API can stream patched artifacts AND remove a job's
+      # artifact directory when it's deleted
+      - reflutter-artifacts:/reflutter-artifacts
 
   worker:
     image: algorithmss/iosdeob-worker:latest
@@ -95,6 +104,35 @@ services:
       - INTERNAL_TOKEN=${INTERNAL_TOKEN:-dev-internal-token-change-me}
     volumes:
       - uploads:/uploads:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4g
+
+  # Patches Flutter apps with reFlutter. Unlike worker/worker-android this one
+  # has internet egress (via egress-net) because reFlutter downloads the
+  # matching pre-patched Flutter engine from GitHub at patch time. It only
+  # patches/repackages the uploaded app — it never executes it.
+  reflutter:
+    image: algorithmss/iosdeob-reflutter:latest
+    networks:
+      - backend-net
+      - egress-net
+    depends_on:
+      - redis
+    tmpfs:
+      - /work:size=4g
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - API_INTERNAL_URL=http://api:8000
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:-dev-internal-token-change-me}
+      - UPLOADS_DIR=/uploads
+      - REFLUTTER_ARTIFACTS_DIR=/reflutter-artifacts
+      - WORK_DIR=/work
+    volumes:
+      - uploads:/uploads:ro
+      - reflutter-artifacts:/reflutter-artifacts
     deploy:
       resources:
         limits:

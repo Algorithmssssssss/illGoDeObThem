@@ -446,3 +446,57 @@ class ApkCompareResponse(BaseModel):
     b: ApkCompareScanRef
     files: FileDiffOut
     classes: DexClassDiffOut
+
+
+# ---------------------------------------------------------------------------
+# reFlutter
+# ---------------------------------------------------------------------------
+
+
+class ReflutterJobOut(BaseModel):
+    id: str
+    platform: str
+    original_filename: str
+    size_bytes: int
+    mode: str
+    proxy_ip: Optional[str] = None
+    status: str
+    progress_pct: int
+    message: Optional[str] = None
+    error_message: Optional[str] = None
+    output_log: Optional[str] = None
+    snapshot_hash: Optional[str] = None
+    artifact_filename: Optional[str] = None
+    has_artifact: bool = False
+    created_at: datetime
+    finished_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DumpDartOut(BaseModel):
+    id: str
+    reflutter_job_id: Optional[str] = None
+    original_filename: str
+    size_bytes: int
+    parsed: Any
+    created_at: datetime
+
+
+class ReflutterCompletePayload(BaseModel):
+    success: bool
+    error_message: Optional[str] = None
+    output_log: Optional[str] = None
+    snapshot_hash: Optional[str] = None
+    artifact_path: Optional[str] = None
+    artifact_filename: Optional[str] = None
+
+
+class DumpDartSummaryOut(BaseModel):
+    id: str
+    reflutter_job_id: Optional[str] = None
+    original_filename: str
+    size_bytes: int
+    stats: Any
+    created_at: datetime

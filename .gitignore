@@ -29,3 +29,6 @@ frida-bridge/.tmp_custom_scripts/
 *.db
 *.db-journal
 *.log
+
+# Vite build output (dev uses the vite dev server; dist is a byproduct)
+web/dist/

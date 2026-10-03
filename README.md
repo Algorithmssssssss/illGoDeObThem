@@ -47,6 +47,14 @@ explicitly authorized to test — see [Responsible use](#responsible-use).
   UI and run alongside the built-in hooks in its own isolated script
   instance. This piece runs natively on your Mac, not in Docker, and is
   entirely optional/additive — see [Setting up dynamic analysis](#3-optional-set-up-dynamic-analysis-frida-bridge).
+- **reFlutter** — for Flutter apps (where the ObjC/DEX class browsers come up
+  nearly empty, because Dart compiles to an opaque native snapshot), patch the
+  app's Flutter engine with [reFlutter](https://github.com/Impact-I/reFlutter):
+  either reroute its traffic through a Burp proxy, or make it emit a `dump.dart`
+  of the reconstructed Dart library/class/function layout at launch. Upload an
+  `.ipa`/`.apk`, pick the mode, download the (unsigned) patched build, then
+  upload the device-produced `dump.dart` to browse the recovered Dart symbol
+  tree. Works for both iOS and Android — see [reFlutter](#reflutter-patching-flutter-apps).
 - **MCP server** — exposes the same analysis (upload, file tree, classes,
   functions, decompiled pseudo-C) as MCP tools, so Claude Code, Claude
   Desktop, or any other MCP client can upload an IPA and reason about what
@@ -75,6 +83,34 @@ disassembly on whichever class you open first.
   ObjC-specific one.
 - **MCP tools** — `mcp-server` currently only exposes the iOS analysis.
 
+## reFlutter (patching Flutter apps)
+
+Flutter compiles Dart to an opaque native snapshot, so the ObjC and DEX class
+browsers show almost nothing for a Flutter app. The **reFlutter** section
+(🦋 in the nav rail, on both the iOS and Android sides) patches the app's
+Flutter engine so you can actually see inside it.
+
+1. Pick a mode:
+   - **Display absolute code offsets (dump.dart)** — the patched build writes a
+     `dump.dart` to its sandbox at launch: the reconstructed Dart
+     library → class → function layout with code offsets. This is the one for
+     reverse engineering.
+   - **Traffic monitoring & interception** — reroutes the app's traffic to a
+     Burp proxy at an IP you provide (port 8083), which also sidesteps TLS
+     pinning for inspection.
+2. Drop an `.ipa` (iOS) or `.apk` (Android). The `reflutter` service downloads
+   the matching pre-patched Flutter engine, swaps it in, and repackages.
+3. Download the patched build. **It is unsigned** — re-sign and install it
+   yourself (Android: `java -jar uber-apk-signer.jar -a <file>.RE.apk`; iOS:
+   Sideloadly/`codesign`).
+4. Run the signed build on a device you control, pull the `dump.dart` it wrote,
+   and upload it into the **dump.dart viewer** to browse the recovered Dart
+   library/class/function tree (with a filter and the code offsets). Cross-
+   reference those offsets against the binary in the Workbench.
+
+Like the rest of the app, this is for apps you own or are explicitly authorized
+to test — see [Responsible use](#responsible-use).
+
 ## Architecture
 
 ```
@@ -87,12 +123,20 @@ worker          (Celery)            — the ONLY thing that touches untrusted IP
 worker-android  (Celery)            — the Android analog of `worker`, same isolation
                                        posture — extraction, androguard manifest/DEX
                                        parsing, JADX decompile, apktool smali
-redis                                — Celery broker (shared by both workers, separate queues)
+reflutter       (Celery)            — patches Flutter apps with reFlutter; the ONE
+                                       service with internet egress, because reFlutter
+                                       downloads the matching pre-patched engine from
+                                       GitHub. Patches/repackages only — never executes.
+redis                                — Celery broker (shared by all workers, separate queues)
 ```
 
 `worker`/`worker-android` run on an internal, egress-free Docker network with
 a read-only root filesystem — they parse untrusted binaries but never
-execute them.
+execute them. `reflutter` is the deliberate exception: it needs outbound HTTPS
+to fetch the pre-patched Flutter engine, so it sits on its own egress-capable
+network (`egress-net`) while still reaching `redis`/`api` over the internal
+one. It only patches and repackages the uploaded app — it never runs it — and
+its output is unsigned, so you re-sign and install it yourself.
 
 Two more pieces run **outside** Docker, directly on your Mac, and are both
 entirely optional:
@@ -114,11 +158,12 @@ same.
 api/            FastAPI backend — routes, models, schemas (both iOS and Android)
 worker/         Celery worker that does the iOS static analysis (Docker)
 worker-android/ Celery worker that does the Android static analysis (Docker)
+reflutter/      Celery worker that patches Flutter apps with reFlutter (Docker, has egress)
 web/            React + TypeScript frontend (iOS + Android, switched in the UI)
 proxy/          Caddy config (the reverse proxy in front of everything)
 frida-bridge/   Dynamic-analysis worker — runs on your host, not in Docker (iOS only)
 mcp-server/     MCP server — also runs on your host (iOS only)
-docker-compose.yml   Defines proxy/web/api/worker/worker-android/redis
+docker-compose.yml   Defines proxy/web/api/worker/worker-android/reflutter/redis
 ```
 
 ## Prerequisites

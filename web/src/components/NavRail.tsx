@@ -1,14 +1,16 @@
-export type AppView = "workbench" | "compare" | "dynamic" | "docs";
+export type AppView = "workbench" | "compare" | "dynamic" | "reflutter" | "docs";
 
 const IOS_SECTIONS: { id: AppView; icon: string; label: string }[] = [
   { id: "workbench", icon: "📦", label: "Workbench" },
   { id: "compare", icon: "⚖️", label: "Compare" },
   { id: "dynamic", icon: "🧬", label: "Dynamic" },
+  { id: "reflutter", icon: "🦋", label: "reFlutter" },
 ];
 
 const ANDROID_SECTIONS: { id: AppView; icon: string; label: string }[] = [
   { id: "workbench", icon: "📦", label: "Workbench" },
   { id: "compare", icon: "⚖️", label: "Compare" },
+  { id: "reflutter", icon: "🦋", label: "reFlutter" },
 ];
 
 export default function NavRail({
