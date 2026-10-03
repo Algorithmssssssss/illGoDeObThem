@@ -82,6 +82,7 @@ export interface ObjCClassesResponse {
 
 export interface FunctionEntry {
   address: number;
+  size?: number | null;
   name: string;
   source: "objc_method" | "symbol";
   class_name?: string | null;
@@ -156,6 +157,10 @@ export async function getTree(id: string): Promise<FileTreeNode[]> {
 
 export async function getPlists(id: string): Promise<PlistEntry[]> {
   return json(await fetch(`${API_BASE}/ipas/${id}/plists`));
+}
+
+export async function reanalyzeIpa(id: string): Promise<Job> {
+  return json(await fetch(`${API_BASE}/ipas/${id}/reanalyze`, { method: "POST" }));
 }
 
 export async function listJobs(id: string): Promise<Job[]> {
@@ -273,17 +278,52 @@ export interface ClassDiff {
   common_total: number;
 }
 
+export interface FunctionChanged {
+  name: string;
+  size_a: number;
+  size_b: number;
+}
+
 export interface FunctionDiff {
   only_in_a: string[];
   only_in_a_total: number;
   only_in_b: string[];
   only_in_b_total: number;
+  changed: FunctionChanged[];
+  changed_total: number;
+  larger_in_a_total: number;
+  larger_in_b_total: number;
   common_total: number;
+}
+
+export interface BinaryStats {
+  path?: string | null;
+  file_size?: number | null;
+  text_size?: number | null;
+  size_source?: "function_starts" | "named_symbols" | string | null;
+  function_count?: number | null;
+  unnamed_function_count?: number | null;
+  named_function_count: number;
+  named_code_size: number;
+}
+
+export interface BinaryRegion {
+  name: string;
+  kind: "segment" | "section";
+  size_a?: number | null;
+  size_b?: number | null;
+}
+
+export interface BinaryDiff {
+  a?: BinaryStats | null;
+  b?: BinaryStats | null;
+  regions: BinaryRegion[];
 }
 
 export interface CompareResult {
   a: CompareScanRef;
   b: CompareScanRef;
+  binary: BinaryDiff;
   files: FileDiff;
   classes: ClassDiff;
   functions: FunctionDiff;

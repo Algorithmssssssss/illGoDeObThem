@@ -36,6 +36,7 @@ class MethodOut(BaseModel):
     selector: str
     type_encoding: Optional[str] = None
     address: Optional[int] = None
+    size: Optional[int] = None
 
 
 class PropertyOut(BaseModel):
@@ -82,6 +83,7 @@ class FilePreviewOut(BaseModel):
 
 class FunctionOut(BaseModel):
     address: int
+    size: Optional[int] = None  # bytes of code, up to the next function start
     name: str
     source: str  # "objc_method" | "symbol"
     class_name: Optional[str] = None
@@ -175,17 +177,52 @@ class ClassDiffOut(BaseModel):
     common_total: int = 0
 
 
+class FunctionChangedOut(BaseModel):
+    name: str
+    size_a: int
+    size_b: int
+
+
 class FunctionDiffOut(BaseModel):
     only_in_a: list[str] = []
     only_in_a_total: int = 0
     only_in_b: list[str] = []
     only_in_b_total: int = 0
+    changed: list[FunctionChangedOut] = []  # same name, different code size; biggest difference first
+    changed_total: int = 0
+    larger_in_a_total: int = 0
+    larger_in_b_total: int = 0
     common_total: int = 0
+
+
+class BinaryStatsOut(BaseModel):
+    path: Optional[str] = None
+    file_size: Optional[int] = None
+    text_size: Optional[int] = None  # __TEXT,__text
+    size_source: Optional[str] = None  # "function_starts" | "named_symbols" (sizes are upper bounds)
+    function_count: Optional[int] = None  # every function, named or not
+    unnamed_function_count: Optional[int] = None
+    named_function_count: int = 0
+    named_code_size: int = 0  # bytes of code inside named functions
+
+
+class BinaryRegionOut(BaseModel):
+    name: str  # "__TEXT" or "__TEXT,__text"
+    kind: str  # "segment" | "section"
+    size_a: Optional[int] = None
+    size_b: Optional[int] = None
+
+
+class BinaryDiffOut(BaseModel):
+    a: Optional[BinaryStatsOut] = None  # None: scan predates code-size analysis, needs a re-analyse
+    b: Optional[BinaryStatsOut] = None
+    regions: list[BinaryRegionOut] = []
 
 
 class CompareResponse(BaseModel):
     a: CompareScanRef
     b: CompareScanRef
+    binary: BinaryDiffOut
     files: FileDiffOut
     classes: ClassDiffOut
     functions: FunctionDiffOut

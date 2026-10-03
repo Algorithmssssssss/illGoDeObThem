@@ -109,6 +109,28 @@ def delete_ipa(ipa_id: str, db: Session = Depends(get_db)):
     return None
 
 
+@router.post("/{ipa_id}/reanalyze", response_model=JobOut)
+def reanalyze_ipa(ipa_id: str, db: Session = Depends(get_db)):
+    """Re-runs extraction on an already-uploaded IPA, e.g. to pick up
+    analysis that was added after it was first scanned. The scan stays
+    readable with its old results until the new ones replace them."""
+    ipa = db.get(IPA, ipa_id)
+    if not ipa:
+        raise HTTPException(404, "IPA not found")
+    if not os.path.exists(ipa.storage_path):
+        raise HTTPException(409, "The uploaded .ipa is no longer on disk; upload it again")
+
+    job = Job(ipa_id=ipa.id, phase="extract", status="queued")
+    db.add(job)
+    db.commit()
+
+    task_id = enqueue_analyze_ipa(ipa.id, job.id, ipa.storage_path)
+    job.celery_task_id = task_id
+    db.commit()
+
+    return job
+
+
 @router.get("/{ipa_id}/jobs", response_model=list[JobOut])
 def list_jobs(ipa_id: str, db: Session = Depends(get_db)):
     return db.query(Job).filter(Job.ipa_id == ipa_id).all()

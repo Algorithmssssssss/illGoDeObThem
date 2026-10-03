@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { FunctionEntry } from "../api";
+import { useRevealSelected } from "./useRevealSelected";
 
 export default function FunctionBrowser({
   functions,
@@ -11,6 +12,7 @@ export default function FunctionBrowser({
   onSelect: (fn: FunctionEntry) => void;
 }) {
   const [query, setQuery] = useState("");
+  const listRef = useRevealSelected<HTMLDivElement>(selectedAddress);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return functions;
@@ -26,7 +28,7 @@ export default function FunctionBrowser({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="class-list">
+      <div className="class-list" ref={listRef}>
         {filtered.map((fn) => (
           <div
             key={fn.address}

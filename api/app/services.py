@@ -20,6 +20,7 @@ def get_merged_functions(db: Session, ipa_id: str) -> list[dict]:
                 seen_addresses.add(m["address"])
                 functions.append({
                     "address": m["address"],
+                    "size": m.get("size"),
                     "name": f"-[{row.name} {m['selector']}]",
                     "source": "objc_method",
                     "class_name": row.name,
@@ -30,6 +31,7 @@ def get_merged_functions(db: Session, ipa_id: str) -> list[dict]:
                 seen_addresses.add(m["address"])
                 functions.append({
                     "address": m["address"],
+                    "size": m.get("size"),
                     "name": f"+[{row.name} {m['selector']}]",
                     "source": "objc_method",
                     "class_name": row.name,
@@ -41,6 +43,7 @@ def get_merged_functions(db: Session, ipa_id: str) -> list[dict]:
             seen_addresses.add(s.address)
             functions.append({
                 "address": s.address,
+                "size": s.size,
                 "name": s.name,
                 "source": "symbol",
                 "class_name": None,

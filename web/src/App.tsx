@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { IPA, listIpas } from "./api";
 import { APK, listApks } from "./androidApi";
+import { CompareSelection, PendingJump } from "./jump";
 import NavRail, { type AppView } from "./components/NavRail";
 import PlatformSwitch, { type Platform } from "./components/PlatformSwitch";
 import WorkbenchPage from "./components/WorkbenchPage";
@@ -37,6 +38,12 @@ export default function App() {
 
   const [apks, setApks] = useState<APK[]>([]);
   const [selectedApkId, setSelectedApkId] = useState<string | null>(null);
+
+  const [ipaCompare, setIpaCompare] = useState<CompareSelection>({ a: "", b: "" });
+  const [apkCompare, setApkCompare] = useState<CompareSelection>({ a: "", b: "" });
+
+  // Set by a Compare-page jump; the Workbench clears it once it has landed.
+  const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
 
   const refreshIpas = useCallback(() => {
     listIpas().then(setIpas).catch(console.error);
@@ -105,13 +112,18 @@ export default function App() {
               selectedIpaId={selectedIpaId}
               onSelectIpa={setSelectedIpaId}
               onIpasChanged={refreshIpas}
+              jumpTarget={pendingJump?.scanId === selectedIpaId ? pendingJump.target : null}
+              onJumpDone={() => setPendingJump(null)}
             />
           )}
           {platform === "ios" && view === "compare" && (
             <ComparePage
               ipas={ipas}
-              onJumpToScan={(id) => {
+              selection={ipaCompare}
+              onSelectionChange={setIpaCompare}
+              onJumpToScan={(id, target) => {
                 setSelectedIpaId(id);
+                setPendingJump({ scanId: id, target });
                 setView("workbench");
               }}
             />
@@ -125,13 +137,18 @@ export default function App() {
               selectedApkId={selectedApkId}
               onSelectApk={setSelectedApkId}
               onApksChanged={refreshApks}
+              jumpTarget={pendingJump?.scanId === selectedApkId ? pendingJump.target : null}
+              onJumpDone={() => setPendingJump(null)}
             />
           )}
           {platform === "android" && view === "compare" && (
             <AndroidComparePage
               apks={apks}
-              onJumpToScan={(id) => {
+              selection={apkCompare}
+              onSelectionChange={setApkCompare}
+              onJumpToScan={(id, target) => {
                 setSelectedApkId(id);
+                setPendingJump({ scanId: id, target });
                 setView("workbench");
               }}
             />

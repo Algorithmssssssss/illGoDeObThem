@@ -7,6 +7,7 @@ import zipfile
 from typing import Callable
 
 from .binarycache import save_binary_slice
+from .codesize import measure_code
 from .machoinfo import extract_entitlements, find_preferred_slice
 from .objc_metadata import extract_objc_classes
 from .symtab import extract_code_symbols
@@ -96,6 +97,7 @@ def analyze(ipa_id: str, storage_path: str, progress: ProgressFn) -> dict:
         objc_classes: list[dict] = []
         objc_warnings: list[str] = []
         symbols: list[dict] = []
+        binary_stats: dict | None = None
         app_dir = _find_app_dir(work_dir)
         main_binary_rel = None
 
@@ -149,6 +151,13 @@ def analyze(ipa_id: str, storage_path: str, progress: ProgressFn) -> dict:
                 except Exception:
                     symbols = []
 
+                progress(82, "Measuring function sizes", "extract")
+                try:
+                    binary_stats = measure_code(binary_data, slice_offset, slice_size, objc_classes, symbols)
+                    binary_stats["path"] = main_binary_rel
+                except Exception:
+                    binary_stats = None
+
         if main_binary_rel:
             for n in nodes:
                 if n["path"] == main_binary_rel:
@@ -161,6 +170,7 @@ def analyze(ipa_id: str, storage_path: str, progress: ProgressFn) -> dict:
             "objc_classes": objc_classes,
             "objc_warnings": objc_warnings,
             "symbols": symbols,
+            "binary_stats": binary_stats,
         }
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)

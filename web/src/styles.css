@@ -854,13 +854,69 @@ body {
 }
 .compare-section h2 .muted { font-size: 12px; font-weight: 400; color: var(--text-muted); }
 
+.binary-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1200px) {
+  .binary-tables { grid-template-columns: minmax(0, 1fr); }
+}
+.binary-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+.binary-table th, .binary-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--bg-sunken);
+  white-space: nowrap;
+}
+.binary-table tr:last-child > * { border-bottom: none; }
+.binary-table th { text-align: left; font-weight: 400; color: var(--text); }
+.binary-table td { text-align: right; font-family: var(--mono); font-size: 11.5px; color: var(--text-muted); }
+.binary-table td[colspan] { text-align: left; font-family: var(--sans); }
+.binary-table thead th {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.binary-table thead th:first-child { white-space: normal; }
+.binary-table thead th:not(:first-child) { text-align: right; }
+.binary-table tbody tr:not(.binary-segment) th.mono { padding-left: 26px; color: var(--text-muted); }
+.binary-table .binary-segment th { font-weight: 600; }
+.binary-delta.changed { color: var(--amber); }
+.binary-toggle {
+  margin-left: 12px;
+  font-weight: 400;
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.binary-tables + .notice { margin-top: 10px; }
+.binary-missing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .diff-grid { display: grid; gap: 14px; }
 .diff-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .diff-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 980px) {
-  .diff-grid-2, .diff-grid-3 { grid-template-columns: 1fr; }
+  .diff-grid-2, .diff-grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
 
+.diff-col-wide { grid-column: 1 / -1; }
 .diff-col {
   background: var(--bg-raised);
   border: 1px solid var(--border);

@@ -123,8 +123,10 @@ docker-compose.yml   Defines proxy/web/api/worker/worker-android/redis
 
 ## Prerequisites
 
-- **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** —
-  required for everything except dynamic analysis and the MCP server.
+- **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (or
+  Docker Engine + Compose on Linux) — required for everything except dynamic
+  analysis and the MCP server. The images build and run on both x86-64
+  (amd64) and ARM64 hosts.
 - **macOS** — `frida-bridge` (dynamic analysis) specifically needs macOS for
   USB device access; the rest of the stack is platform-agnostic.
 - **Git**.

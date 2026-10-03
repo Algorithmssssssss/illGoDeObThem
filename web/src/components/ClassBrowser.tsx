@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ObjCClass } from "../api";
+import { useRevealSelected } from "./useRevealSelected";
 
 export default function ClassBrowser({
   classes,
@@ -11,6 +12,7 @@ export default function ClassBrowser({
   onSelect: (cls: ObjCClass) => void;
 }) {
   const [query, setQuery] = useState("");
+  const listRef = useRevealSelected<HTMLDivElement>(selected);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return classes;
@@ -26,7 +28,7 @@ export default function ClassBrowser({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="class-list">
+      <div className="class-list" ref={listRef}>
         {filtered.map((c) => (
           <div
             key={c.name}

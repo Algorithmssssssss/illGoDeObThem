@@ -22,6 +22,7 @@ class IPA(Base):
     status = Column(String, default="pending")  # pending, extracting, ready, failed
     error_message = Column(Text, nullable=True)
     objc_warnings_json = Column(Text, nullable=True)
+    binary_stats_json = Column(Text, nullable=True)  # main binary's code-size stats; null for scans analysed before this existed
     uploaded_at = Column(DateTime, default=datetime.utcnow)
 
     file_tree_nodes = relationship("FileTreeNode", back_populates="ipa", cascade="all, delete-orphan")
@@ -79,6 +80,7 @@ class SymbolEntry(Base):
     ipa_id = Column(String, ForeignKey("ipas.id"), nullable=False)
     name = Column(String, nullable=False)
     address = Column(BigInteger, nullable=False)
+    size = Column(Integer, nullable=True)  # bytes of code, up to the next function start
 
 
 class DisasmResult(Base):

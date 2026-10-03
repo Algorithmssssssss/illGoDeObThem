@@ -14,6 +14,7 @@ export default function DiffColumn<T>({
   renderRow,
   jumpTargets,
   onJump,
+  wide = false,
 }: {
   title: string;
   count: number;
@@ -22,7 +23,8 @@ export default function DiffColumn<T>({
   filterText: (item: T) => string;
   renderRow: (item: T) => React.ReactNode;
   jumpTargets?: (item: T) => JumpTarget[];
-  onJump?: (scanId: string) => void;
+  onJump?: (scanId: string, item: T) => void;
+  wide?: boolean; // span the whole grid row, for items too long for one column
 }) {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -32,7 +34,7 @@ export default function DiffColumn<T>({
   }, [items, query, filterText]);
 
   return (
-    <div className="diff-col">
+    <div className={wide ? "diff-col diff-col-wide" : "diff-col"}>
       <div className={`diff-col-header tone-${tone}`}>
         <span>{title}</span>
         <span className="diff-count">{count}</span>
@@ -52,7 +54,7 @@ export default function DiffColumn<T>({
                     key={t.scanId}
                     className="diff-jump-btn"
                     title={`Open in Workbench · ${t.label}`}
-                    onClick={() => onJump(t.scanId)}
+                    onClick={() => onJump(t.scanId, item)}
                   >
                     {t.label} ↗
                   </button>

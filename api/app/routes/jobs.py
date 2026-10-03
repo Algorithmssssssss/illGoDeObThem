@@ -66,6 +66,7 @@ class MethodIn(BaseModel):
     selector: str
     type_encoding: str | None = None
     address: int | None = None
+    size: int | None = None
 
 
 class PropertyIn(BaseModel):
@@ -93,6 +94,7 @@ class ObjCClassIn(BaseModel):
 class SymbolIn(BaseModel):
     name: str
     address: int
+    size: int | None = None
 
 
 class CompletePayload(BaseModel):
@@ -103,6 +105,7 @@ class CompletePayload(BaseModel):
     objc_classes: list[ObjCClassIn] = []
     objc_warnings: list[str] = []
     symbols: list[SymbolIn] = []
+    binary_stats: dict | None = None
 
 
 class DisasmOpIn(BaseModel):
@@ -225,13 +228,14 @@ async def internal_job_complete(job_id: str, payload: CompletePayload, db: Sessi
             ))
 
         for sym in payload.symbols:
-            db.add(SymbolEntry(ipa_id=job.ipa_id, name=sym.name, address=sym.address))
+            db.add(SymbolEntry(ipa_id=job.ipa_id, name=sym.name, address=sym.address, size=sym.size))
 
         job.status = "done"
         job.progress_pct = 100
         if ipa:
             ipa.status = "ready"
             ipa.objc_warnings_json = json.dumps(payload.objc_warnings)
+            ipa.binary_stats_json = json.dumps(payload.binary_stats) if payload.binary_stats else None
     else:
         job.status = "failed"
         job.error_message = payload.error_message

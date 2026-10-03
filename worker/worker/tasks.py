@@ -41,6 +41,7 @@ def analyze_ipa(self, ipa_id: str, job_id: str, storage_path: str) -> bool:
             "objc_classes": result["objc_classes"],
             "objc_warnings": result["objc_warnings"],
             "symbols": result["symbols"],
+            "binary_stats": result["binary_stats"],
         }
     except Exception as exc:
         payload = {"success": False, "error_message": str(exc)}

@@ -1,0 +1,5 @@
+# node_modules holds native per-OS/arch binaries (esbuild, rollup). The
+# Dockerfile installs Linux ones for the image's arch; a host-side install
+# (e.g. macOS) must not be copied over them by `COPY . .`.
+node_modules
+dist

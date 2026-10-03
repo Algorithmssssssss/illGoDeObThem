@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Pinned JADX (dex→Java decompiler) and apktool (smali disassembler) releases.
 # Both are plain Java tools (no native arch-specific builds), so unlike
-# worker/Dockerfile's radare2 install this doesn't need a $TARGETARCH split.
+# worker/Dockerfile's radare2 install this doesn't need a per-arch download.
 ARG JADX_VERSION=1.5.6
 ARG APKTOOL_VERSION=3.0.3
 

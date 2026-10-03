@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FileChanged, FileEntry } from "../api";
 import { APK, ApkCompareResult, DexClassChanged, DexClassSummary, compareApkScans } from "../androidApi";
+import { CompareSelection, WorkbenchTarget } from "../jump";
 import DiffColumn from "./DiffColumn";
 
 function formatSize(bytes?: number | null): string {
@@ -25,14 +26,21 @@ formatDelta.bytes = (n: number) => {
 
 export default function AndroidComparePage({
   apks,
+  selection,
+  onSelectionChange,
   onJumpToScan,
 }: {
   apks: APK[];
-  onJumpToScan: (apkId: string) => void;
+  selection: CompareSelection;
+  onSelectionChange: (selection: CompareSelection) => void;
+  onJumpToScan: (apkId: string, target: WorkbenchTarget) => void;
 }) {
   const readyApks = useMemo(() => apks.filter((apk) => apk.status === "ready"), [apks]);
-  const [aId, setAId] = useState("");
-  const [bId, setBId] = useState("");
+  // A remembered pick can outlive its scan (deleted in the Workbench meanwhile).
+  const aId = readyApks.some((s) => s.id === selection.a) ? selection.a : "";
+  const bId = readyApks.some((s) => s.id === selection.b) ? selection.b : "";
+  const setAId = (a: string) => onSelectionChange({ ...selection, a });
+  const setBId = (b: string) => onSelectionChange({ ...selection, b });
   const [result, setResult] = useState<ApkCompareResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +122,7 @@ export default function AndroidComparePage({
                   </>
                 )}
                 jumpTargets={() => [{ label: "A", scanId: result.a.id }]}
-                onJump={onJumpToScan}
+                onJump={(scanId, f) => onJumpToScan(scanId, { kind: "file", path: f.path })}
               />
               <DiffColumn
                 title="Only in B"
@@ -129,7 +137,7 @@ export default function AndroidComparePage({
                   </>
                 )}
                 jumpTargets={() => [{ label: "B", scanId: result.b.id }]}
-                onJump={onJumpToScan}
+                onJump={(scanId, f) => onJumpToScan(scanId, { kind: "file", path: f.path })}
               />
               <DiffColumn
                 title="Changed size"
@@ -147,7 +155,7 @@ export default function AndroidComparePage({
                   { label: "A", scanId: result.a.id },
                   { label: "B", scanId: result.b.id },
                 ]}
-                onJump={onJumpToScan}
+                onJump={(scanId, f) => onJumpToScan(scanId, { kind: "file", path: f.path })}
               />
             </div>
           </section>
@@ -170,7 +178,7 @@ export default function AndroidComparePage({
                   </>
                 )}
                 jumpTargets={() => [{ label: "A", scanId: result.a.id }]}
-                onJump={onJumpToScan}
+                onJump={(scanId, c) => onJumpToScan(scanId, { kind: "class", name: c.name })}
               />
               <DiffColumn
                 title="Only in B"
@@ -185,7 +193,7 @@ export default function AndroidComparePage({
                   </>
                 )}
                 jumpTargets={() => [{ label: "B", scanId: result.b.id }]}
-                onJump={onJumpToScan}
+                onJump={(scanId, c) => onJumpToScan(scanId, { kind: "class", name: c.name })}
               />
               <DiffColumn
                 title="Changed"
@@ -205,7 +213,7 @@ export default function AndroidComparePage({
                   { label: "A", scanId: result.a.id },
                   { label: "B", scanId: result.b.id },
                 ]}
-                onJump={onJumpToScan}
+                onJump={(scanId, c) => onJumpToScan(scanId, { kind: "class", name: c.name })}
               />
             </div>
           </section>

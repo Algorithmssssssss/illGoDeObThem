@@ -22,8 +22,9 @@ import {
   requestDisasm,
   uploadIpa,
 } from "../api";
+import { WorkbenchTarget } from "../jump";
 import UploadForm from "./UploadForm";
-import FileTree from "./FileTree";
+import FileTree, { flattenFiles } from "./FileTree";
 import PlistViewer from "./PlistViewer";
 import FileViewer from "./FileViewer";
 import ClassBrowser from "./ClassBrowser";
@@ -45,11 +46,15 @@ export default function WorkbenchPage({
   selectedIpaId,
   onSelectIpa,
   onIpasChanged,
+  jumpTarget,
+  onJumpDone,
 }: {
   ipas: IPA[];
   selectedIpaId: string | null;
   onSelectIpa: (id: string | null) => void;
   onIpasChanged: () => void;
+  jumpTarget: WorkbenchTarget | null;
+  onJumpDone: () => void;
 }) {
   const selectedIpa = ipas.find((i) => i.id === selectedIpaId) ?? null;
   const [job, setJob] = useState<Job | null>(null);
@@ -273,6 +278,34 @@ export default function WorkbenchPage({
     setTab("functions");
     setSelectedFunctionAddress(address);
   }
+
+  // A jump from the Compare page arrives before this scan's data does (the
+  // page mounts fresh on the view switch), so wait for the list the target
+  // lives in, then open it exactly as a click on that row would.
+  useEffect(() => {
+    if (!jumpTarget) return;
+    if (jumpTarget.kind === "file") {
+      if (tree.length === 0) return;
+      const node = flattenFiles(tree).find((n) => n.path === jumpTarget.path);
+      if (node) {
+        setTab("files");
+        setSelectedNode(node);
+      }
+    } else if (jumpTarget.kind === "class") {
+      if (classes.length === 0) return;
+      const cls = classes.find((c) => c.name === jumpTarget.name);
+      if (cls) {
+        setTab("classes");
+        setSelectedClass(cls);
+      }
+    } else {
+      if (functions.length === 0) return;
+      const fn = functions.find((f) => f.name === jumpTarget.name);
+      if (fn) jumpToAddress(fn.address);
+    }
+    onJumpDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpTarget, tree, classes, functions]);
 
   async function handleDeleteIpa(ipa: IPA, e: MouseEvent) {
     e.stopPropagation();

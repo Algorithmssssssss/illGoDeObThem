@@ -20,8 +20,9 @@ import {
   uploadApk,
 } from "../androidApi";
 import { FilePreview } from "../api";
+import { WorkbenchTarget } from "../jump";
 import UploadForm from "./UploadForm";
-import FileTree, { androidIconFor } from "./FileTree";
+import FileTree, { androidIconFor, flattenFiles } from "./FileTree";
 import PlistViewer from "./PlistViewer";
 import FileViewer from "./FileViewer";
 import DexClassBrowser from "./DexClassBrowser";
@@ -40,11 +41,15 @@ export default function AndroidWorkbenchPage({
   selectedApkId,
   onSelectApk,
   onApksChanged,
+  jumpTarget,
+  onJumpDone,
 }: {
   apks: APK[];
   selectedApkId: string | null;
   onSelectApk: (id: string | null) => void;
   onApksChanged: () => void;
+  jumpTarget: WorkbenchTarget | null;
+  onJumpDone: () => void;
 }) {
   const selectedApk = apks.find((a) => a.id === selectedApkId) ?? null;
   const [job, setJob] = useState<AndroidJob | null>(null);
@@ -168,6 +173,30 @@ export default function AndroidWorkbenchPage({
       cancelled = true;
     };
   }, [selectedApkId, selectedNode]);
+
+  // A jump from the Compare page arrives before this scan's data does (the
+  // page mounts fresh on the view switch), so wait for the list the target
+  // lives in, then open it exactly as a click on that row would.
+  useEffect(() => {
+    if (!jumpTarget) return;
+    if (jumpTarget.kind === "file") {
+      if (tree.length === 0) return;
+      const node = flattenFiles(tree).find((n) => n.path === jumpTarget.path);
+      if (node) {
+        setTab("files");
+        setSelectedNode(node);
+      }
+    } else if (jumpTarget.kind === "class") {
+      if (classes.length === 0) return;
+      const cls = classes.find((c) => c.name === jumpTarget.name);
+      if (cls) {
+        setTab("classes");
+        setSelectedClass(cls);
+      }
+    }
+    onJumpDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpTarget, tree, classes]);
 
   useEffect(() => {
     sourceWsRef.current?.close();
